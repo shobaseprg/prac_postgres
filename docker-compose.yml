@@ -1,0 +1,50 @@
+# docker-compose.yml
+version: "3.3"
+
+services:
+
+  postgres:
+    build:
+      context: .
+      dockerfile: ./Dockerfile-postgres
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=secret
+      - POSTGRES_DB=prac_postgres
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - prac_postgres_data:/var/lib/postgresql/data
+      - ./postgres/seed:/seed
+    ports:
+      - "5432:5432"
+    container_name: postgres
+
+  migrate:
+    image: migrate/migrate:v4.15.2
+    profiles: ["tools"]
+    volumes:
+      - ./postgres/migrations:/migrations
+    entrypoint:
+      [
+        "migrate",
+        "-path",
+        "/migrations",
+        "-database",
+        "postgres://postgres:secret@postgres:5432/prac_postgres?sslmode=disable",
+      ]
+    command: ["up"]
+    depends_on:
+      postgres:
+        condition: service_healthy  # Post
+    restart: on-failure
+
+volumes:
+  prac_postgres_data:
+
+# https://medium.com/pengenpaham/postgres-database-migration-using-golang-migrate-docker-compose-and-makefile-159ef50670cf
+
+# https://zenn.dev/farstep/books/f74e6b76ea7456/viewer/4cd440
